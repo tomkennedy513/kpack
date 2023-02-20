@@ -13,6 +13,8 @@ import (
 	corev1alpha1 "github.com/pivotal/kpack/pkg/apis/core/v1alpha1"
 )
 
+const BuildRunningReason = "BuildRunning"
+
 func (c *Reconciler) reconcileBuild(ctx context.Context, image *buildapi.Image, latestBuild *buildapi.Build, sourceResolver *buildapi.SourceResolver, builder buildapi.BuilderResource, buildCacheName string) (buildapi.ImageStatus, error) {
 	currentBuildNumber, err := buildCounter(latestBuild)
 	if err != nil {
@@ -112,7 +114,7 @@ func builderCondition(builder buildapi.BuilderResource) corev1alpha1.Condition {
 			Type:               buildapi.ConditionBuilderReady,
 			Status:             corev1.ConditionFalse,
 			Reason:             buildapi.BuilderNotReady,
-			Message:            fmt.Sprintf("Builder %s is not ready", builder.GetName()),
+			Message:            builderError(builder),
 			LastTransitionTime: corev1alpha1.VolatileTime{Inner: metav1.Now()},
 		}
 	}
@@ -121,6 +123,16 @@ func builderCondition(builder buildapi.BuilderResource) corev1alpha1.Condition {
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: corev1alpha1.VolatileTime{Inner: metav1.Now()},
 	}
+}
+
+func builderError(builder buildapi.BuilderResource) string {
+	errorMessage := fmt.Sprintf("Builder %s is not ready", builder.GetName())
+
+	if message := builder.ConditionReadyMessage(); message != "" {
+		errorMessage = fmt.Sprintf("%s: %s", errorMessage, message)
+	}
+
+	return errorMessage
 }
 
 func scheduledBuildCondition(build *buildapi.Build) corev1alpha1.Conditions {
@@ -146,4 +158,17 @@ func buildCounter(build *buildapi.Build) (int64, error) {
 
 	buildNumber := build.Labels[buildapi.BuildNumberLabel]
 	return strconv.ParseInt(buildNumber, 10, 64)
+}
+
+func buildRunningCondition(build *buildapi.Build, builder buildapi.BuilderResource) corev1alpha1.Conditions {
+	return corev1alpha1.Conditions{
+		{
+			Type:               corev1alpha1.ConditionReady,
+			Status:             corev1.ConditionUnknown,
+			Reason:             BuildRunningReason,
+			Message:            emptyMessageIfNil(build.Status.GetCondition(corev1alpha1.ConditionSucceeded)),
+			LastTransitionTime: corev1alpha1.VolatileTime{Inner: metav1.Now()},
+		},
+		builderCondition(builder),
+	}
 }
