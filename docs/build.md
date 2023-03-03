@@ -157,9 +157,9 @@ status:
 
 ### kpack build vs pack build
 
-So, you are a [pack](_pack) user trying to learn about [kpack](_kpack) and get your [Cloud Native Buildpacks](_cnb) journey to the next level? then you are in the right place, on the next sections we are going to explain the similarities between [pack](_pack) and [kpack](_kpack).
+So, you are a [pack][_pack] user trying to learn about [kpack][_kpack] and get your [Cloud Native Buildpacks][_cnb] journey to the next level? then you are in the right place, on the next sections we are going to explain the similarities between [pack][_pack] and [kpack][_kpack].
 
-First of all, both [kpack](_kpack) and [pack](_pack) implement the [platform interface](https://github.com/buildpacks/spec/blob/main/platform.md) [specification](https://github.com/buildpacks/spec/blob/main/platform.md), but they do it for two non-overlapping contexts: while [pack](_pack) targets developers and local builds, [kpack](_kpack) manages containerization on day-2 and at scale and is a [Kubernetes](https://kubernetes.io/) native implementation.
+First of all, both [kpack][_kpack] and [pack][_pack] implement the [platform interface](https://github.com/buildpacks/spec/blob/main/platform.md) [specification](https://github.com/buildpacks/spec/blob/main/platform.md), but they do it for two non-overlapping contexts: while [pack][_pack] targets developers and local builds, [kpack][_kpack] manages containerization on day-2 and at scale and is a [Kubernetes](https://kubernetes.io/) native implementation.
 
 Let's start by defining a simple use case scenario and see how we can get the output from both tools.
 
@@ -176,7 +176,7 @@ In order to make our implementation very simple, lets make some assumptions:
 
 ###### Pack Implementation
 
-In order to build our application source code using [pack](_pack) we need to run a command similar to this:
+In order to build our application source code using [pack][_pack] we need to run a command similar to this:
 
 `pack build --publish --path apps/<APP> --builder cnbs/sample-builder:<bionic OR alpine> <app-image-name>`
 
@@ -184,11 +184,9 @@ After building your '<app-image-name>' must be written into your remote registry
 
 ###### Kpack Implementation
 
-How do we get a similar functionality to a pack build command using kpack? the answer is the [Build](build.md) resource!
+How do we get a similar functionality to a `pack build` command using [kpack][_kpack]? the answer is the Build resource!
 
-[kpack](_kpack) offers a [Build](build.md) resource which is comparable to `pack build` and provides a simplified interface with more control over the build lifecycle including interoperability with [builders](builders.md) built by [pack](_pack).
-
-Once you have [kpack](_kpack) up and running on a kubernetes cluster, you need to create a [Build](build.md) resource and apply it to your cluster. for our scenario it looks like this:
+Once you have [kpack][_kpack] up and running on a kubernetes cluster, you need to create a Build resource and apply it to your cluster. for our scenario it looks like this:
 
 ```yaml
 apiVersion: kpack.io/v1alpha2
@@ -209,8 +207,8 @@ spec:
 
 Once you create yaml file, the next step is just to apply the resource into your kubernetes cluster, for example using `kubectl apply -f <your-build-resource.yaml>`. After building, your '<app-image-name>' must be also written into your remote registry.
 
-**Note** Probably you will need to create some [secrets](secrets.md) to give [kpack](_kpack) access to your remote registry, but this is also required on [pack](_pack), so please check the documentation depending on your registry provider
+**Note** Probably you will need to create some [secrets](secrets.md) to give [kpack][_kpack] access to your remote registry, but this is also required on [pack][_pack], so please check the documentation depending on your registry provider
 
-[_pack]: https://github.com/buildpacks/pack
-[_kpack]: https://github.com/pivotal/kpack
-[_cnb]: https://buildpacks.io
+[_pack]:https://github.com/buildpacks/pack
+[_kpack]:https://github.com/pivotal/kpack
+[_cnb]:https://buildpacks.io
