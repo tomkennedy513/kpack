@@ -165,7 +165,9 @@ Let's start by defining a simple use case scenario and see how we can get the ou
 
 #### Scenario
 
-Let's define our most basic use case as follows: `As a [pack|kpack] user, I want to convert my application source code into an image and publish it into a remote registry`
+Let's define our most basic use case as follows: 
+
+`As a [pack|kpack] user, I want to convert my application source code into an image and publish it into a remote registry`
 
 ##### Implementation
 
