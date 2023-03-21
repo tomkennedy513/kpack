@@ -223,7 +223,7 @@ After building, your '<app-image-name>' must be also written into your remote re
 
 ##### Pack Implementation
 
-In pack, in order to re-build your application image, you just need to run the `pack build` command after saving your application source code changes
+In [pack][_pack], in order to re-build your application image, you just need to run the `pack build` command after saving your application source code changes
 
 ##### Kpack Implementation
 
@@ -259,11 +259,55 @@ Note: use `create` instead of `apply` when using `generateName`
 
 #### Rebase scenario
 
-`As a [pack|kpack] user, I want to rebase my application image with a `
+`As a [pack|kpack] user, I want to rebase my application image with a new run-image from the stack`
 
 ##### Pack Implementation
 
+[pack][_pack] offers the `pack rebase` command to accomplish this goal, for example:
+
+```bash
+pack rebase --publish <app-image-name>
+```
+
 ##### Kpack Implementation
+
+A standalone build can be triggered to be rebase if [kpack][_kpack] detects it is a "rebase-able" build. 
+
+A build is considered "rebase-able" if the following conditions are met: 
+
+- the field `spec.lastBuild.stackId` is equal to <same-stack-id-as-the-builder> 
+- An annotation key `image.kpack.io/reason` is equal to `STACK`
+
+An example resource that also is configured to use the `generateName` field could be as follows:
+
+```yaml
+apiVersion: kpack.io/v1alpha2
+kind: Build
+metadata:
+  generateName: sample-build- # this value will be a prefix 
+  annotations:
+    image.kpack.io/reason: STACK
+spec:
+  lastBuild:
+    stackId: <same-stack-id-as-the-builder>
+  tags:
+    - <app-image-name>
+  builder:
+    image: cnbs/sample-builder:<bionic OR alpine>
+  source:
+    git:
+      url: https://github.com/buildpacks/samples.git
+      revision: main
+    subPath: "apps/<APP>"
+```
+Once you create yaml file, just run
+
+```bash
+kubectl create -f <your-build-resource.yaml>
+```
+
+[kpack][_kpack] will create a pod execution the rebase operation
+
 
 [_pack]:https://github.com/buildpacks/pack
 [_kpack]:https://github.com/pivotal/kpack
