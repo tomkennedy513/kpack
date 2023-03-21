@@ -6,7 +6,7 @@ Corresponding `kp` cli command docs [here](https://github.com/vmware-tanzu/kpack
 
 Unlike with the [Image resource](image.md), using Builds directly allows granular control of when builds execute. Each build resource is immutable and corresponds to a single build execution. You will need to create a new build for every build execution as builds will not rebuild on source code and buildpack updates. Additionally, you will need to manually specify the source, and the cache volume. 
 
-A Build resource is comparable to `pack build`. Are you familiar with pack? if so, you can check the [comparison section](#kpack-build-vs-pack-build) 
+A Build resource is comparable to `pack build`. Are you familiar with pack? if so, you can check the [comparison section](#kpack-vs-pack) 
 
 ### Configuration
 
@@ -155,28 +155,28 @@ status:
   ...
 ``` 
 
-### kpack build vs pack build
+### kpack vs pack 
 
 So, you are a [pack][_pack] user trying to learn about [kpack][_kpack] and get your [Cloud Native Buildpacks][_cnb] journey to the next level? then you are in the right place, on the next sections we are going to explain the similarities between [pack][_pack] and [kpack][_kpack].
 
 First of all, both [kpack][_kpack] and [pack][_pack] implement the [platform interface](https://github.com/buildpacks/spec/blob/main/platform.md) [specification](https://github.com/buildpacks/spec/blob/main/platform.md), but they do it for two non-overlapping contexts: while [pack][_pack] targets developers and local builds, [kpack][_kpack] manages containerization on day-2 and at scale and is a [Kubernetes](https://kubernetes.io/) native implementation.
 
-Let's start by defining a simple use case scenario and see how we can get the output from both tools.
+We will define some basic use case scenarios and see how we can get the output from both tools.
 
-#### Scenario
+#### Assumptions
+
+In order to make our comparison very simple, lets make some assumptions:
+1. Our application source code is one of the [samples](https://github.com/buildpacks/samples/tree/main/apps) application
+2. We are going to use [Cloud Native Buildpacks](_cnb) [sample builder](https://hub.docker.com/r/cnbs/sample-builder) to build our application source code
+3. We need **write** access to a remote registry to publish our application image
+
+#### Build scenario
 
 Let's define our most basic use case as follows: 
 
 `As a [pack|kpack] user, I want to convert my application source code into an image and publish it into a remote registry`
 
-##### Implementation
-
-In order to make our implementation very simple, lets make some assumptions:
-1. Our application source code is one of the [samples](https://github.com/buildpacks/samples/tree/main/apps) application
-2. We are going to use [Cloud Native Buildpacks](_cnb) [sample builder](https://hub.docker.com/r/cnbs/sample-builder) to build our application source code
-3. We need **write** access to a remote registry to publish our application image
-
-###### Pack Implementation
+##### Pack Implementation
 
 In order to build our application source code using [pack][_pack] we need to run a command similar to this:
 
@@ -184,7 +184,7 @@ In order to build our application source code using [pack][_pack] we need to run
 
 After building your '<app-image-name>' must be written into your remote registry.
 
-###### Kpack Implementation
+##### Kpack Implementation
 
 How do we get a similar functionality to a `pack build` command using [kpack][_kpack]? the answer is the Build resource!
 
@@ -207,9 +207,63 @@ spec:
     subPath: "apps/<APP>"
 ```
 
-Once you create yaml file, the next step is just to apply the resource into your kubernetes cluster, for example using `kubectl apply -f <your-build-resource.yaml>`. After building, your '<app-image-name>' must be also written into your remote registry.
+Once you create yaml file, the next step is just to apply the resource into your kubernetes cluster, for example using 
+
+```bash
+kubectl apply -f <your-build-resource.yaml>
+```
+
+After building, your '<app-image-name>' must be also written into your remote registry.
 
 **Note** Probably you will need to create some [secrets](secrets.md) to give [kpack][_kpack] access to your remote registry, but this is also required on [pack][_pack], so please check the documentation depending on your registry provider
+
+#### Re-build scenario
+
+`As a [pack|kpack] user, I want to rebuild my application source code after some change and publish a new image into a remote registry`
+
+##### Pack Implementation
+
+In pack, in order to re-build your application image, you just need to run the `pack build` command after saving your application source code changes
+
+##### Kpack Implementation
+
+As we mentioned above, All fields on a build are immutable, this mean that every time we want to run a build we must create a new `Build` resource. One way to do this is using `generateName` field in our resource definition.
+
+From our previous resource definition, let's remove the `metadata.name` field, and replace it with a `metadata.generateName` this value will be used by the server, to generate a unique name ONLY IF the Name field has not been provided.
+
+```yaml
+apiVersion: kpack.io/v1alpha2
+kind: Build
+metadata:
+  generateName: sample-build- # this value will be a prefix 
+spec:
+  tags:
+    - <app-image-name>
+  builder:
+    image: cnbs/sample-builder:<bionic OR alpine>
+  source:
+    git:
+      url: https://github.com/buildpacks/samples.git
+      revision: main
+    subPath: "apps/<APP>"
+```
+Once you create yaml file, any time you want to create a build, just run
+
+```bash
+kubectl create -f <your-build-resource.yaml>
+```
+
+A new build resource will be created and a unique suffix will be added to the value provided, for example: `sample-build-2vsz5`
+
+Note: use `create` instead of `apply` when using `generateName`
+
+#### Rebase scenario
+
+`As a [pack|kpack] user, I want to rebase my application image with a `
+
+##### Pack Implementation
+
+##### Kpack Implementation
 
 [_pack]:https://github.com/buildpacks/pack
 [_kpack]:https://github.com/pivotal/kpack
