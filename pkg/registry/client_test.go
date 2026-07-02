@@ -2,14 +2,22 @@ package registry_test
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"runtime"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/name"
+	ggcrregistry "github.com/google/go-containerregistry/pkg/registry"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/pkg/errors"
 	"github.com/sclevine/spec"
 	"github.com/stretchr/testify/assert"
@@ -96,6 +104,68 @@ func testClient(t *testing.T, when spec.G, it spec.S) {
 
 					require.Equal(t, imageId, fullyQualifedImageRef)
 				})
+			})
+		})
+
+		when("the reference is a multi-arch image index", func() {
+			var (
+				indexServer      *httptest.Server
+				indexTag         string
+				currentArchImage v1.Image
+				otherArchImage   v1.Image
+			)
+
+			it.Before(func() {
+				indexServer = httptest.NewServer(ggcrregistry.New(ggcrregistry.Logger(log.New(io.Discard, "", 0))))
+
+				otherArch := "arm64"
+				if runtime.GOARCH == "arm64" {
+					otherArch = "amd64"
+				}
+
+				currentArchImage = imageForPlatform(t, runtime.GOARCH)
+				otherArchImage = imageForPlatform(t, otherArch)
+
+				index := mutate.AppendManifests(empty.Index,
+					mutate.IndexAddendum{
+						Add:        currentArchImage,
+						Descriptor: v1.Descriptor{Platform: &v1.Platform{OS: "linux", Architecture: runtime.GOARCH}},
+					},
+					mutate.IndexAddendum{
+						Add:        otherArchImage,
+						Descriptor: v1.Descriptor{Platform: &v1.Platform{OS: "linux", Architecture: otherArch}},
+					},
+				)
+
+				indexTag = fmt.Sprintf("%s/some/multi-arch-image:tag", indexServer.URL[7:])
+				ref, err := name.ParseReference(indexTag)
+				require.NoError(t, err)
+				require.NoError(t, remote.WriteIndex(ref.(name.Tag), index, remote.WithAuthFromKeychain(keychain)))
+			})
+
+			it.After(func() {
+				indexServer.Close()
+			})
+
+			it("fetches the manifest matching the current architecture, not amd64 by default", func() {
+				image, imageId, err := subject.Fetch(keychain, indexTag)
+				require.NoError(t, err)
+
+				currentArchDigest, err := currentArchImage.Digest()
+				require.NoError(t, err)
+				otherArchDigest, err := otherArchImage.Digest()
+				require.NoError(t, err)
+
+				fetchedDigest, err := image.Digest()
+				require.NoError(t, err)
+
+				require.Equal(t, currentArchDigest, fetchedDigest)
+				require.NotEqual(t, otherArchDigest, fetchedDigest)
+				require.Contains(t, imageId, currentArchDigest.String())
+
+				configFile, err := image.ConfigFile()
+				require.NoError(t, err)
+				require.Equal(t, runtime.GOARCH, configFile.Architecture)
 			})
 		})
 
@@ -281,6 +351,20 @@ func testClient(t *testing.T, when spec.G, it spec.S) {
 
 func randomImage(t *testing.T, layers int64) v1.Image {
 	image, err := random.Image(5, layers)
+	require.NoError(t, err)
+	return image
+}
+
+func imageForPlatform(t *testing.T, arch string) v1.Image {
+	base := randomImage(t, 1)
+	configFile, err := base.ConfigFile()
+	require.NoError(t, err)
+
+	configFile = configFile.DeepCopy()
+	configFile.OS = "linux"
+	configFile.Architecture = arch
+
+	image, err := mutate.ConfigFile(base, configFile)
 	require.NoError(t, err)
 	return image
 }
