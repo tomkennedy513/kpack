@@ -8,7 +8,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-var reportFilePath = flag.String("path", "report/report.toml", "path to report.toml")
+var reportFilePath = flag.String("path", "report.toml", "path to report.toml")
 
 func main() {
 	flag.Parse()
